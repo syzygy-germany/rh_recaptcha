@@ -14,6 +14,7 @@ namespace RH\RhRecaptcha\ViewHelpers;
  * The TYPO3 project - inspiring people to share!
  */
 
+use In2code\Powermail\Domain\Model\Field;
 use TYPO3\CMS\Core\Page\PageRenderer;
 use TYPO3\CMS\Core\SingletonInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -93,27 +94,41 @@ class ReCaptchaViewHelper extends AbstractViewHelper implements SingletonInterfa
             throw new InvalidVariableException('No siteKey provided in TypoScript constants', 1358349150);
         }
 
+        /** @var Field $field */
+        $field = $this->renderingContext->getVariableProvider()->get('field');
+
+        // register all element ids
+        $pageRenderer = $this->getPageRenderer();
+        $pageRenderer->addJsFooterInlineCode(
+            'recaptchaField' . $field->getUid(),
+            'var fields = fields || [];
+             fields.push(' . $field->getUid() .');
+            ',
+            false,
+            true
+        );
+
         if (!$this->initialized) {
             $key = $reCaptchaSettings['siteKey'];
             $this->initialized = true;
-            $pageRenderer = $this->getPageRenderer();
+
             $pageRenderer->addJsFooterInlineCode(
                 'recaptcha',
                 '
-					var recaptchaCallback = function() {
-						for (var i = 1; i <= 1000; ++i) {
-							if (document.getElementById(\'g-recaptcha-\' + i)) {
-								grecaptcha.render(\'g-recaptcha-\' + i, {\'sitekey\' : \'' . $key . '\'});
-							}
-						}
-					};
-					/*]]>*/					
-					</script>
-					<script src="https://www.google.com/recaptcha/api.js?hl=' . $reCaptchaSettings['lang'] . '&onload=recaptchaCallback&render=explicit"
-						async defer data-ignore="1">/*<![CDATA[*/
-				',
+                    var recaptchaCallback = function() {
+                        for (var i = 0; i < fields.length; i++) {
+                            if (document.getElementById(\'g-recaptcha-\' + fields[i])) {
+                                grecaptcha.render(\'g-recaptcha-\'  + fields[i], {\'sitekey\' : \'' . $key . '\'});
+                            }
+                        }
+                    };
+                    /*]]>*/                    
+                    </script>
+                    <script src="https://www.google.com/recaptcha/api.js?hl=' . $reCaptchaSettings['lang'] . '&onload=recaptchaCallback&render=explicit"
+                        async defer data-ignore="1">/*<![CDATA[*/
+                ',
                 false,
-                true
+                false
             );
         }
 
